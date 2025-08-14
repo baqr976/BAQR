@@ -1,0 +1,145 @@
+-- HS Menu (GUI + Kill + Fling) -- برمجة من قبل باقر -- ضَع هذا الملف على Pastebin/GitHub ثم نفّذ: -- loadstring(game:HttpGet("LINK_HERE"))()
+
+-- الملاحظات: -- 1) يعتمد زر القتل على صلاحياتك في HD Admin (الـ prefix هنا هو 'x'). -- 2) السكربت يحاول استدعاء أمر الادمن لعمل TP. إن لم يتوفر، يحاول استخدام طرق بديلة. -- 3) Fling هنا طريقة فيزيائية (BodyVelocity). في بعض الألعاب/خوادم مع FilteringEnabled قد يحتاج بيئة تنفيذ (exploit) للعمل بشكل صحيح.
+
+local Players = game:GetService("Players") local LocalPlayer = Players.LocalPlayer local ReplicatedStorage = game:GetService("ReplicatedStorage") local Debris = game:GetService("Debris") local RunService = game:GetService("RunService")
+
+-- إعداد الـ GUI local screenGui = Instance.new("ScreenGui") screenGui.Name = "HSMenu" screenGui.ResetOnSpawn = false screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- الإطار الرئيسي local mainFrame = Instance.new("Frame") mainFrame.Name = "Main" mainFrame.Size = UDim2.new(0, 420, 0, 260) mainFrame.Position = UDim2.new(0.3, 0, 0.25, 0) mainFrame.BackgroundColor3 = Color3.fromRGB(18,18,18) mainFrame.BorderSizePixel = 0 mainFrame.Active = true mainFrame.Draggable = true mainFrame.Parent = screenGui
+
+-- ترويسة local header = Instance.new("Frame") header.Size = UDim2.new(1,0,0,40) header.BackgroundColor3 = Color3.fromRGB(30,30,30) header.BorderSizePixel = 0 header.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel") titleLabel.Size = UDim2.new(0.6,0,1,0) titleLabel.Position = UDim2.new(0.02,0,0,0) titleLabel.BackgroundTransparency = 1 titleLabel.Text = "HS - القائمة" titleLabel.TextColor3 = Color3.fromRGB(255,255,255) titleLabel.Font = Enum.Font.GothamBold titleLabel.TextSize = 18 titleLabel.TextXAlignment = Enum.TextXAlignment.Left titleLabel.Parent = header
+
+-- زر التصغير local minimizeBtn = Instance.new("TextButton") minimizeBtn.Size = UDim2.new(0,36,0,24) minimizeBtn.Position = UDim2.new(0.88,0,0.12,0) minimizeBtn.BackgroundColor3 = Color3.fromRGB(45,45,45) minimizeBtn.Text = "_" minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255) minimizeBtn.Font = Enum.Font.GothamBold minimizeBtn.TextSize = 20 minimizeBtn.Parent = header
+
+-- ايقونة HS (تظهر داخل الترويسة عند التصغير) local hsIcon = Instance.new("Frame") hsIcon.Size = UDim2.new(0,34,0,34) hsIcon.Position = UDim2.new(0.78,0,0.03,0) hsIcon.BackgroundColor3 = Color3.fromRGB(12,12,12) hsIcon.BorderSizePixel = 0 hsIcon.Parent = header
+
+local hLabel = Instance.new("TextLabel") hLabel.Size = UDim2.new(0.5,0,1,0) hLabel.Position = UDim2.new(0,0,0,0) hLabel.BackgroundTransparency = 1 hLabel.Text = "H" hLabel.Font = Enum.Font.GothamBlack hLabel.TextSize = 18 hLabel.TextColor3 = Color3.fromRGB(255,215,0) -- ذهبي hLabel.Parent = hsIcon
+
+local sLabel = Instance.new("TextLabel") sLabel.Size = UDim2.new(0.5,0,1,0) sLabel.Position = UDim2.new(0.5,0,0,0) sLabel.BackgroundTransparency = 1 sLabel.Text = "S" sLabel.Font = Enum.Font.GothamBlack sLabel.TextSize = 18 sLabel.TextColor3 = Color3.fromRGB(200,0,0) -- احمر sLabel.Parent = hsIcon
+
+-- خط دموي يقطع الحروف (Frame احمر طولي) local bloodLine = Instance.new("Frame") bloodLine.Size = UDim2.new(1,0,0,4) bloodLine.Position = UDim2.new(0,0,0.45,0) bloodLine.BackgroundColor3 = Color3.fromRGB(140,0,0) bloodLine.BorderSizePixel = 0 bloodLine.Parent = hsIcon
+
+-- مربع مصغّر يظهر عند التصغير local miniButton = Instance.new("TextButton") miniButton.Size = UDim2.new(0,60,0,60) miniButton.Position = UDim2.new(0.02,0,0.02,0) miniButton.BackgroundColor3 = Color3.fromRGB(20,20,20) miniButton.Text = "" miniButton.Visible = false miniButton.Parent = screenGui miniButton.AutoButtonColor = true
+
+-- إعادة تصميم نص HS داخل الميني local miniH = Instance.new("TextLabel") miniH.Size = UDim2.new(0.5,0,1,0) miniH.Position = UDim2.new(0,0,0,0) miniH.BackgroundTransparency = 1 miniH.Text = "H" miniH.Font = Enum.Font.GothamBlack miniH.TextSize = 18 miniH.TextColor3 = Color3.fromRGB(255,215,0) miniH.Parent = miniButton
+
+local miniS = Instance.new("TextLabel") miniS.Size = UDim2.new(0.5,0,1,0) miniS.Position = UDim2.new(0.5,0,0,0) miniS.BackgroundTransparency = 1 miniS.Text = "S" miniS.Font = Enum.Font.GothamBlack miniS.TextSize = 18 miniS.TextColor3 = Color3.fromRGB(200,0,0) miniS.Parent = miniButton
+
+local miniBlood = Instance.new("Frame") miniBlood.Size = UDim2.new(1,0,0,3) miniBlood.Position = UDim2.new(0,0,0.45,0) miniBlood.BackgroundColor3 = Color3.fromRGB(140,0,0) miniBlood.BorderSizePixel = 0 miniBlood.Parent = miniButton
+
+-- الجسم الداخلي: قسم اليسار واليمين local leftPanel = Instance.new("Frame") leftPanel.Size = UDim2.new(0,120,1,-40) leftPanel.Position = UDim2.new(0,0,0,40) leftPanel.BackgroundTransparency = 1 leftPanel.Parent = mainFrame
+
+local rightPanel = Instance.new("Frame") rightPanel.Size = UDim2.new(1,-130,1,-40) rightPanel.Position = UDim2.new(0,130,0,40) rightPanel.BackgroundTransparency = 1 rightPanel.Parent = mainFrame
+
+-- أزرار الأقسام على اليسار local sections = {"تخريب"} -- يمكنك إضافة أقسام لاحقًا local leftButtons = {} local layout = Instance.new("UIListLayout") layout.Parent = leftPanel layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Padding = UDim.new(0,6)
+
+for i, name in ipairs(sections) do local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -10, 0, 36) btn.Position = UDim2.new(0,5,0, (i-1)*42) btn.BackgroundColor3 = Color3.fromRGB(40,40,40) btn.Text = name btn.TextColor3 = Color3.fromRGB(255,255,255) btn.Font = Enum.Font.Gotham btn.TextSize = 16 btn.Name = "Section_"..name btn.Parent = leftPanel leftButtons[name] = btn end
+
+-- محتوى قسم التخريب على اليمين local sabotageFrame = Instance.new("Frame") sabotageFrame.Size = UDim2.new(1,0,1,0) sabotageFrame.BackgroundTransparency = 1 sabotageFrame.Parent = rightPanel
+
+-- خانة البحث/الاسم local nameBox = Instance.new("TextBox") nameBox.Size = UDim2.new(0,260,0,30) nameBox.Position = UDim2.new(0,0,0,0) nameBox.PlaceholderText = "أكتب أول حرفين/ثلاثة من اسم اللاعب" nameBox.Text = "" nameBox.ClearTextOnFocus = false nameBox.TextColor3 = Color3.fromRGB(255,255,255) nameBox.BackgroundColor3 = Color3.fromRGB(40,40,40) nameBox.Parent = sabotageFrame
+
+-- زر Kill local killBtn = Instance.new("TextButton") killBtn.Size = UDim2.new(0,120,0,30) killBtn.Position = UDim2.new(0,270,0,0) killBtn.Text = "Kill" killBtn.Font = Enum.Font.GothamBold killBtn.TextSize = 16 killBtn.TextColor3 = Color3.fromRGB(255,255,255) killBtn.BackgroundColor3 = Color3.fromRGB(100,10,10) killBtn.Parent = sabotageFrame
+
+-- زر Fling local flingBtn = Instance.new("TextButton") flingBtn.Size = UDim2.new(0,120,0,30) flingBtn.Position = UDim2.new(0,270,0,40) flingBtn.Text = "Fling" flingBtn.Font = Enum.Font.GothamBold flingBtn.TextSize = 16 flingBtn.TextColor3 = Color3.fromRGB(255,255,255) flingBtn.BackgroundColor3 = Color3.fromRGB(10,80,10) flingBtn.Parent = sabotageFrame
+
+-- مربع نتائج البحث (يعرض الاسم الكامل عند التطابق) local resultLabel = Instance.new("TextLabel") resultLabel.Size = UDim2.new(0,380,0,30) resultLabel.Position = UDim2.new(0,0,0,80) resultLabel.BackgroundTransparency = 1 resultLabel.Text = "" resultLabel.TextColor3 = Color3.fromRGB(200,200,200) resultLabel.Font = Enum.Font.Gotham resultLabel.TextSize = 14 resultLabel.TextXAlignment = Enum.TextXAlignment.Left resultLabel.Parent = sabotageFrame
+
+-- توقيع في الأسفل يسار local signature = Instance.new("TextLabel") signature.Size = UDim2.new(0,220,0,20) signature.Position = UDim2.new(0,5,1,-22) signature.BackgroundTransparency = 1 signature.Text = "برمجة من قبل باقر" signature.TextColor3 = Color3.fromRGB(200,200,200) signature.Font = Enum.Font.Gotham signature.TextSize = 14 signature.TextXAlignment = Enum.TextXAlignment.Left signature.Parent = mainFrame
+
+-- دوال مساعدة local function findPlayerByPrefix(prefix) if not prefix or prefix == "" then return nil end prefix = prefix:lower() for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Name:lower():sub(1, #prefix) == prefix then return p end end return nil end
+
+local function tryInvokeHDAdmin(command) -- نحاول استدعاء ReplicatedStorage.HDAdminClient.Signals.RequestCommand local success, err = pcall(function() local hd = ReplicatedStorage:FindFirstChild("HDAdminClient") or ReplicatedStorage:FindFirstChild("HDAdmin") if hd and hd:FindFirstChild("Signals") and hd.Signals:FindFirstChild("RequestCommand") then hd.Signals.RequestCommand:InvokeServer(command) return true end -- بعض نسخ HDAdmin تستخدم RemoteEvent مباشرة local remote = ReplicatedStorage:FindFirstChild("HDAdminClient") if remote and remote:IsA("RemoteEvent") then remote:FireServer(command) return true end end) return success end
+
+-- البحث الحي وتحديث النتيجة nameBox:GetPropertyChangedSignal("Text"):Connect(function() local prefix = nameBox.Text local p = findPlayerByPrefix(prefix) if p then resultLabel.Text = "تم العثور على: " .. p.Name else resultLabel.Text = "لا يوجد لاعب مطابق" end end)
+
+-- تنفيذ أمر Kill: سحب اللاعب لأسفل الماب ثم إرجاعك killBtn.MouseButton1Click:Connect(function() local prefix = nameBox.Text local target = findPlayerByPrefix(prefix) if not target then resultLabel.Text = "لا يوجد لاعب بهذا الاسم" return end if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then resultLabel.Text = "لم يتم العثور على شخصيتك" return end
+
+resultLabel.Text = "تنفيذ Kill على: "..target.Name
+local myCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+
+-- نستخدم برفكس x لأوامر HDAdmin (xtp)
+local tpCmd = "xtp "..target.Name.." 0 -500 0"
+local brought = false
+
+-- محاولة استدعاء أمر الادمن
+local ok = tryInvokeHDAdmin(tpCmd)
+if ok then
+    brought = true
+else
+    -- محاولة سحب اللاعب إلى حولك أولًا (xtp target me) ثم وضعه
+    pcall(function()
+        tryInvokeHDAdmin("xtp "..target.Name.." me")
+        wait(0.3)
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            target.Character.HumanoidRootPart.CFrame = CFrame.new(0, -500, 0)
+            brought = true
+        end
+    end)
+end
+
+-- كحل بديل: إذا فشل كل شيء، نحاول مباشرة تعديل CFrame (يعتمد على صلاحيات التنفيذ/exploit)
+if not brought then
+    pcall(function()
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            target.Character.HumanoidRootPart.CFrame = CFrame.new(0, -500, 0)
+            brought = true
+        end
+    end)
+end
+
+wait(1)
+
+-- ارجاعك لمكانك الاصلي: نستخدم امر ادمن أو مباشرة تغييره
+pcall(function()
+    -- محاولة إعادة المكان عن طريق الادمن
+    tryInvokeHDAdmin("xtp "..LocalPlayer.Name.." "..tostring(myCFrame.Position.X).." "..tostring(myCFrame.Position.Y).." "..tostring(myCFrame.Position.Z))
+end)
+pcall(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = myCFrame
+    end
+end)
+
+wait(0.5)
+resultLabel.Text = "تم تنفيذ Kill على: "..target.Name
+
+end)
+
+-- Fling فيزيائي (يدفع اللاعب بقوة كبيرة) flingBtn.MouseButton1Click:Connect(function() local prefix = nameBox.Text local target = findPlayerByPrefix(prefix) if not target then resultLabel.Text = "لا يوجد لاعب بهذا الاسم" return end if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then resultLabel.Text = "الشخص لا يمتلك شخصية حالية" return end
+
+resultLabel.Text = "تنفيذ Fling على: "..target.Name
+
+local hrp = target.Character.HumanoidRootPart
+-- محاولة إنشاء BodyVelocity
+local ok, err = pcall(function()
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e7,1e7,1e7)
+    -- نوجه الدفع بعيدا عن اللاعب (من موقعك إليه) مع قوة عمودية
+    local direction = (hrp.Position - (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position or hrp.Position)).unit
+    if direction.magnitude ~= direction.magnitude then direction = Vector3.new(0,1,0) end
+    bv.Velocity = (direction * 150) + Vector3.new(0,150,0)
+    bv.P = 1250
+    bv.Parent = hrp
+    Debris:AddItem(bv, 0.6)
+end)
+
+if not ok then
+    resultLabel.Text = "فشل تنفيذ Fling (قد يحتاج exploit/صلاحية)"
+else
+    resultLabel.Text = "تم تنفيذ Fling على: "..target.Name
+end
+
+end)
+
+-- زر التصغير والسماح بالسحب للميني local minimized = false minimizeBtn.MouseButton1Click:Connect(function() minimized = not minimized mainFrame.Visible = not minimized miniButton.Visible = minimized end)
+
+-- فتح النافذة عند الضغط على الميني miniButton.MouseButton1Click:Connect(function() minimized = false mainFrame.Visible = true miniButton.Visible = false end)
+
+-- تفعيل قسم التخريب افتراضيًا for name, btn in pairs(leftButtons) do btn.BackgroundColor3 = Color3.fromRGB(70,70,70) end
+
+-- نهاية السكربت print("HS Menu loaded — برمجة من قبل باقر")
+
